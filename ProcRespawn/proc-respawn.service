@@ -1,0 +1,13 @@
+[Unit]
+Description=Process Respawn
+After=network.target
+
+[Service]
+WatchdogSec=/home/{USER}/.hoang-toolkit/proc-respawn
+Type=simple
+ExecStart=/usr/bin/dotnet /home/{USER}/.hoang-toolkit/proc-respawn/ProcRespawn.dll
+Restart=always
+User={USER}
+
+[Install]
+WantedBy=default.target

@@ -9,15 +9,15 @@ sealed class DaemonService : IHostedService, IDisposable
     private readonly IOptionsMonitor<AppConfig> _configMonitor;
     private readonly CancellationToken _cancellationToken;
     private readonly CancellationTokenSource _sts;
+    private Task? _task;
 
     public DaemonService(IOptionsMonitor<AppConfig> configMonitor)
     {
         _sts = new CancellationTokenSource();
         _cancellationToken = _sts.Token;
         _configMonitor = configMonitor;
-
         // Register a callback to handle configuration changes
-        configMonitor.OnChange(newConfig =>
+        configMonitor.OnChange(_ =>
         {
             Console.WriteLine("Configuration changed. Reloading...");
             // Reload the configuration
@@ -25,10 +25,11 @@ sealed class DaemonService : IHostedService, IDisposable
         });
     }
 
-    public async Task RunAsync()
+    public async Task RunAsync(CancellationToken cancellationToken)
     {
-        while (!_cancellationToken.IsCancellationRequested)
+        while (!cancellationToken.IsCancellationRequested)
         {
+            Console.WriteLine("Starting loop...");
             var config = _configMonitor.CurrentValue;
 
             foreach (var processConfig in config.Processes)
@@ -58,8 +59,10 @@ sealed class DaemonService : IHostedService, IDisposable
                 }
             }
 
+            Console.WriteLine("Waiting for next interval...");
             await Task.Delay(_configMonitor.CurrentValue.IntervalInMilliseconds,
-                _cancellationToken); // Adjust the interval as needed
+                cancellationToken); // Adjust the interval as needed
+            Console.WriteLine("Wait complete.");
         }
     }
 
@@ -70,11 +73,11 @@ sealed class DaemonService : IHostedService, IDisposable
         => Task.Run(() => Process.Start(executablePath), _cancellationToken);
 
     private Task StartDesktopFileAsync(string desktopFilePath)
-        => Task.Run(() => Process.Start("xdg-open", desktopFilePath), _cancellationToken);
+        => Task.Run(() => Process.Start("gio", ["launch", desktopFilePath]), _cancellationToken);
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        RunAsync();
+        _task = RunAsync(_cancellationToken);
         return Task.CompletedTask;
     }
 
