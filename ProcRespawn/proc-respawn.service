@@ -3,11 +3,12 @@ Description=Process Respawn
 After=network.target
 
 [Service]
-WatchdogSec=/home/{USER}/.hoang-toolkit/proc-respawn
-Type=simple
-ExecStart=/usr/bin/dotnet /home/{USER}/.hoang-toolkit/proc-respawn/ProcRespawn.dll
+WorkingDirectory=/home/popemkt/.hoang-toolkit/proc-respawn
+Type=notify
+ExecStart=/usr/local/bin/ProcRespawn
 Restart=always
-User={USER}
+User=popemkt
+Environment=DOTNET_ROOT=/usr/lib64/dotnet
 
 [Install]
-WantedBy=default.target
+WantedBy=graphical-session.target

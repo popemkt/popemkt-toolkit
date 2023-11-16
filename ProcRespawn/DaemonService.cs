@@ -1,27 +1,29 @@
 using System.Diagnostics;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace ProcRespawn;
 
-sealed class DaemonService : IHostedService, IDisposable
+sealed class DaemonService : BackgroundService, IDisposable
 {
+    private readonly ILogger<DaemonService> _logger;
     private readonly IOptionsMonitor<AppConfig> _configMonitor;
     private readonly CancellationToken _cancellationToken;
     private readonly CancellationTokenSource _sts;
     private Task? _task;
 
-    public DaemonService(IOptionsMonitor<AppConfig> configMonitor)
+    public DaemonService(ILogger<DaemonService> logger, IOptionsMonitor<AppConfig> configMonitor)
     {
+        logger.LogInformation("Start DaemonService");
         _sts = new CancellationTokenSource();
         _cancellationToken = _sts.Token;
+        _logger = logger;
         _configMonitor = configMonitor;
         // Register a callback to handle configuration changes
         configMonitor.OnChange(_ =>
         {
-            Console.WriteLine("Configuration changed. Reloading...");
-            // Reload the configuration
-            // _configMonitor.CurrentValue = newConfig;
+            logger.LogInformation("Configuration changed. Reloading...");
         });
     }
 
@@ -29,7 +31,7 @@ sealed class DaemonService : IHostedService, IDisposable
     {
         while (!cancellationToken.IsCancellationRequested)
         {
-            Console.WriteLine("Starting loop...");
+            _logger.LogInformation("Starting loop...");
             var config = _configMonitor.CurrentValue;
 
             foreach (var processConfig in config.Processes)
@@ -38,18 +40,20 @@ sealed class DaemonService : IHostedService, IDisposable
 
                 if (process is not null)
                 {
-                    Console.WriteLine($"Process found: {processConfig.Name}");
+                    _logger.LogInformation($"Process found: {processConfig.Name}");
                 }
                 else if (process is null || process?.HasExited is true)
                 {
-                    Console.WriteLine($"Restarting process: {processConfig.Name}");
+                    _logger.LogInformation($"Restarting process: {processConfig.Name}");
 
                     switch (processConfig.Type)
                     {
                         case ExecutableType.Binary:
+                            _logger.LogInformation("Binary");
                             await RestartBinaryExecutableAsync(processConfig.Path);
                             break;
                         case ExecutableType.Desktop:
+                            _logger.LogInformation("Desktop");
                             await StartDesktopFileAsync(processConfig.Path);
                             break;
                         default:
@@ -59,10 +63,10 @@ sealed class DaemonService : IHostedService, IDisposable
                 }
             }
 
-            Console.WriteLine("Waiting for next interval...");
+            _logger.LogInformation("Waiting for next interval...");
             await Task.Delay(_configMonitor.CurrentValue.IntervalInMilliseconds,
                 cancellationToken); // Adjust the interval as needed
-            Console.WriteLine("Wait complete.");
+            _logger.LogInformation("Wait complete.");
         }
     }
 
@@ -73,18 +77,19 @@ sealed class DaemonService : IHostedService, IDisposable
         => Task.Run(() => Process.Start(executablePath), _cancellationToken);
 
     private Task StartDesktopFileAsync(string desktopFilePath)
-        => Task.Run(() => Process.Start("gio", ["launch", desktopFilePath]), _cancellationToken);
+        => Task.Run(() =>
+        {
+            _logger.LogInformation(desktopFilePath);
+            var process = Process.Start("gio", ["launch", desktopFilePath]);
+            _logger.LogInformation(process.ProcessName + process.HasExited);
+            process.WaitForExit();
 
-    public Task StartAsync(CancellationToken cancellationToken)
-    {
-        _task = RunAsync(_cancellationToken);
-        return Task.CompletedTask;
-    }
+            _logger.LogInformation("process exited" + process.ExitCode);
+        }, _cancellationToken);
 
-    public Task StopAsync(CancellationToken cancellationToken)
+    protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _sts.Cancel();
-        return Task.CompletedTask;
+        return RunAsync(stoppingToken);
     }
 
     public void Dispose()
