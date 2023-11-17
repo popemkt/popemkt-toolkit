@@ -3,3 +3,4 @@ Name=ProcRespawn
 Exec=/home/{USER}/.hoang-toolkit/proc-respawn/ProcRespawn
 Type=Application
 X-GNOME-Autostart-enabled=true
+Icon=dotnet

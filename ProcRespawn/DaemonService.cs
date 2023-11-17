@@ -20,11 +20,7 @@ sealed class DaemonService : BackgroundService, IDisposable
         _cancellationToken = _sts.Token;
         _logger = logger;
         _configMonitor = configMonitor;
-        // Register a callback to handle configuration changes
-        configMonitor.OnChange(_ =>
-        {
-            logger.LogInformation("Configuration changed. Reloading...");
-        });
+        configMonitor.OnChange(_ => { logger.LogInformation("Configuration changed. Reloading..."); });
     }
 
     public async Task RunAsync(CancellationToken cancellationToken)
@@ -38,22 +34,16 @@ sealed class DaemonService : BackgroundService, IDisposable
             {
                 var process = FindProcessByName(processConfig.Name);
 
-                if (process is not null)
+                if (process is null || process?.HasExited is true)
                 {
-                    _logger.LogInformation($"Process found: {processConfig.Name}");
-                }
-                else if (process is null || process?.HasExited is true)
-                {
-                    _logger.LogInformation($"Restarting process: {processConfig.Name}");
+                    _logger.LogInformation($"Starting process: {processConfig.Name}");
 
                     switch (processConfig.Type)
                     {
                         case ExecutableType.Binary:
-                            _logger.LogInformation("Binary");
                             await RestartBinaryExecutableAsync(processConfig.Path);
                             break;
                         case ExecutableType.Desktop:
-                            _logger.LogInformation("Desktop");
                             await StartDesktopFileAsync(processConfig.Path);
                             break;
                         default:
@@ -66,7 +56,6 @@ sealed class DaemonService : BackgroundService, IDisposable
             _logger.LogInformation("Waiting for next interval...");
             await Task.Delay(_configMonitor.CurrentValue.IntervalInMilliseconds,
                 cancellationToken); // Adjust the interval as needed
-            _logger.LogInformation("Wait complete.");
         }
     }
 
@@ -77,23 +66,16 @@ sealed class DaemonService : BackgroundService, IDisposable
         => Task.Run(() => Process.Start(executablePath), _cancellationToken);
 
     private Task StartDesktopFileAsync(string desktopFilePath)
-        => Task.Run(() =>
-        {
-            _logger.LogInformation(desktopFilePath);
-            var process = Process.Start("gio", ["launch", desktopFilePath]);
-            _logger.LogInformation(process.ProcessName + process.HasExited);
-            process.WaitForExit();
-
-            _logger.LogInformation("process exited" + process.ExitCode);
-        }, _cancellationToken);
+        => Task.Run(() => Process.Start("gio", ["launch", desktopFilePath]), _cancellationToken);
 
     protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
         return RunAsync(stoppingToken);
     }
 
-    public void Dispose()
+    public override void Dispose()
     {
         _sts.Dispose();
+        base.Dispose();
     }
 }
