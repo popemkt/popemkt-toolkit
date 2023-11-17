@@ -1,5 +1,4 @@
-﻿using System.Reflection;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ProcRespawn;
 using Microsoft.Extensions.Hosting;
@@ -11,7 +10,7 @@ var app = Host.CreateDefaultBuilder(args)
         Console.WriteLine("Configuring appsettings.json");
         var configPath = args.Length > 0
             ? args[0]
-            : Path.Combine(Directory.GetCurrentDirectory(), "appsettings.json");
+            : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "appsettings.json");
         Console.WriteLine(configPath);
         builder.AddJsonFile(configPath, optional: false, reloadOnChange: true);
     }))
