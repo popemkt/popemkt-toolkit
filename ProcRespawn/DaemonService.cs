@@ -23,7 +23,7 @@ sealed class DaemonService : BackgroundService, IDisposable
         configMonitor.OnChange(_ => { logger.LogInformation("Configuration changed. Reloading..."); });
     }
 
-    public async Task RunAsync(CancellationToken cancellationToken)
+    private async Task RunAsync(CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -34,22 +34,22 @@ sealed class DaemonService : BackgroundService, IDisposable
             {
                 var process = FindProcessByName(processConfig.Name);
 
-                if (process is null || process?.HasExited is true)
-                {
-                    _logger.LogInformation($"Starting process: {processConfig.Name}");
+                if (process is not null && process?.HasExited is not true)
+                    continue;
 
-                    switch (processConfig.Type)
-                    {
-                        case ExecutableType.Binary:
-                            await RestartBinaryExecutableAsync(processConfig.Path);
-                            break;
-                        case ExecutableType.Desktop:
-                            await StartDesktopFileAsync(processConfig.Path);
-                            break;
-                        default:
-                            Console.WriteLine($"Unknown process type: {processConfig.Type}");
-                            break;
-                    }
+                _logger.LogInformation($"Starting process: {processConfig.Name}");
+
+                switch (processConfig.Type)
+                {
+                    case ExecutableType.Binary:
+                        await RestartBinaryExecutableAsync(processConfig.Path);
+                        break;
+                    case ExecutableType.Desktop:
+                        await StartDesktopFileAsync(processConfig.Path);
+                        break;
+                    default:
+                        _logger.LogError($"Unknown process type: {processConfig.Type}");
+                        break;
                 }
             }
 
