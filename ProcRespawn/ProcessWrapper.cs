@@ -33,6 +33,7 @@ public class ProcessWrapper
         _process!.Kill(true);
         //TODO: if this line is present, _process is null when OnChange fired twice
         // await _process.WaitForExitAsync();
+        _process.Dispose();
         _process = null;
     }
 
