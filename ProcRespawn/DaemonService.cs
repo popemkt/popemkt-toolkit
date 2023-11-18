@@ -5,77 +5,88 @@ using Microsoft.Extensions.Options;
 
 namespace ProcRespawn;
 
-sealed class DaemonService : BackgroundService, IDisposable
+sealed class DaemonService : IHostedService, IDisposable
 {
     private readonly ILogger<DaemonService> _logger;
     private readonly IOptionsMonitor<AppConfig> _configMonitor;
-    private readonly CancellationToken _cancellationToken;
-    private readonly CancellationTokenSource _sts;
     private Task? _task;
+    private readonly SemaphoreSlim _semaphore = new(1, 1);
+    private readonly Dictionary<ProcessConfig, ProcessWrapper> _processes = new();
+    private readonly ILogger<ProcessWrapper> _processLogger;
+    private readonly CancellationTokenSource _sts;
 
-    public DaemonService(ILogger<DaemonService> logger, IOptionsMonitor<AppConfig> configMonitor)
+    public DaemonService(IOptionsMonitor<AppConfig> configMonitor, ILoggerFactory loggerFactory)
     {
-        logger.LogInformation("Start DaemonService");
         _sts = new CancellationTokenSource();
-        _cancellationToken = _sts.Token;
-        _logger = logger;
+        _logger = loggerFactory.CreateLogger<DaemonService>();
+        _processLogger = loggerFactory.CreateLogger<ProcessWrapper>();
+        _logger.LogInformation("Start DaemonService");
         _configMonitor = configMonitor;
-        configMonitor.OnChange(_ => { logger.LogInformation("Configuration changed. Reloading..."); });
+        configMonitor.OnChange(OnConfigChange);
+    }
+
+    private async void OnConfigChange(AppConfig _)
+    {
+        //TODO: for some bizarre reason, this is called twice when the config changes from the 2nd time forward
+        await _semaphore.WaitAsync();
+        try
+        {
+            _logger.LogInformation("Configuration changed. Reloading...");
+            await Parallel.ForEachAsync(_processes.Values,
+                (wrapper, cancellationToken) => wrapper.KillWithoutRestartAsync(cancellationToken));
+
+            _processes.Clear();
+
+            _task = RunAsync(_sts.Token);
+        }
+        finally
+        {
+            _semaphore.Release();
+        }
     }
 
     private async Task RunAsync(CancellationToken cancellationToken)
     {
-        while (!cancellationToken.IsCancellationRequested)
+        var config = _configMonitor.CurrentValue;
+        var startUpBackoff = TimeSpan.FromMilliseconds(config.StartupBackoffInMilliseconds);
+
+        foreach (var processConfig in config.Processes)
         {
-            _logger.LogInformation("Starting loop...");
-            var config = _configMonitor.CurrentValue;
-
-            foreach (var processConfig in config.Processes)
+            await _semaphore.WaitAsync(cancellationToken);
+            try
             {
-                var process = FindProcessByName(processConfig.Name);
+                var wrapper = new ProcessWrapper(_processLogger, processConfig);
 
-                if (process is not null && process?.HasExited is not true)
-                    continue;
-
-                _logger.LogInformation($"Starting process: {processConfig.Name}");
-
-                switch (processConfig.Type)
+                Task OnWrapperProcessExited(object? __, ProcessConfig _)
                 {
-                    case ExecutableType.Binary:
-                        await RestartBinaryExecutableAsync(processConfig.Path);
-                        break;
-                    case ExecutableType.Desktop:
-                        await StartDesktopFileAsync(processConfig.Path);
-                        break;
-                    default:
-                        _logger.LogError($"Unknown process type: {processConfig.Type}");
-                        break;
+                    wrapper.StartSilent(cancellationToken, startUpBackoff);
+                    return Task.CompletedTask;
                 }
-            }
 
-            _logger.LogInformation("Waiting for next interval...");
-            await Task.Delay(_configMonitor.CurrentValue.IntervalInMilliseconds,
-                cancellationToken); // Adjust the interval as needed
+                wrapper.ProcessExited += OnWrapperProcessExited;
+                _processes[processConfig] = wrapper;
+                wrapper.StartSilent(cancellationToken, startUpBackoff);
+            }
+            finally
+            {
+                _semaphore.Release();
+            }
         }
     }
 
-    private Process? FindProcessByName(string name) => Process.GetProcesses().FirstOrDefault(process =>
-        process.ProcessName.Contains(name, StringComparison.InvariantCultureIgnoreCase));
-
-    private Task RestartBinaryExecutableAsync(string executablePath)
-        => Task.Run(() => Process.Start(executablePath), _cancellationToken);
-
-    private Task StartDesktopFileAsync(string desktopFilePath)
-        => Task.Run(() => Process.Start("gio", ["launch", desktopFilePath]), _cancellationToken);
-
-    protected override Task ExecuteAsync(CancellationToken stoppingToken)
+    public Task StartAsync(CancellationToken cancellationToken)
     {
-        return RunAsync(stoppingToken);
+        _task = RunAsync(_sts.Token);
+        return Task.CompletedTask;
     }
 
-    public override void Dispose()
+    public async Task StopAsync(CancellationToken cancellationToken)
+    {
+        await _sts.CancelAsync();
+    }
+
+    public void Dispose()
     {
         _sts.Dispose();
-        base.Dispose();
     }
 }
