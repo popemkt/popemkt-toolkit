@@ -28,6 +28,9 @@ sealed class DaemonService : IHostedService, IDisposable
     private async void OnConfigChange(AppConfig _)
     {
         //TODO: for some bizarre reason, this is called twice when the config changes from the 2nd time forward
+        //https://stackoverflow.com/questions/75257352/double-call-of-onchange-callback-happening-first-detection-of-change-by-ioptionm
+        //https://stackoverflow.com/questions/1764809/filesystemwatcher-changed-event-is-raised-twice
+        //Suggestions might be that filtering + throttling could work.
         await _semaphore.WaitAsync();
         try
         {
