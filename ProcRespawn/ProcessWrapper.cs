@@ -20,9 +20,9 @@ public class ProcessWrapper
         _processConfig = processConfig;
     }
 
-    public void StartSilent(CancellationToken cancellationToken, TimeSpan delay)
+    public void StartOrMonitorSilently(TimeSpan delay, CancellationToken cancellationToken)
     {
-        _task = StartAsync(cancellationToken, delay);
+        _task = StartOrMonitorAsync(cancellationToken, delay);
     }
 
     public async ValueTask KillWithoutRestartAsync(CancellationToken cancellationToken)
@@ -37,7 +37,7 @@ public class ProcessWrapper
         _process = null;
     }
 
-    private async Task StartAsync(CancellationToken cancellationToken, TimeSpan delay)
+    private async Task StartOrMonitorAsync(CancellationToken cancellationToken, TimeSpan delay)
     {
         cancellationToken.ThrowIfCancellationRequested();
         await Task.Delay(delay, cancellationToken);

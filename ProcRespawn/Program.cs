@@ -19,7 +19,7 @@ var app = Host.CreateDefaultBuilder(args)
         Console.WriteLine("Configuring Services");
         services.AddOptions();
         services.Configure<AppConfig>(context.Configuration);
-        services.AddHostedService<DaemonService>();
+        services.AddHostedService<ProcRespawnDaemon>();
     })
     .Build();
 

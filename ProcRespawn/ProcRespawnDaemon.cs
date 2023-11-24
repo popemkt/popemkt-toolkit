@@ -5,9 +5,9 @@ using Microsoft.Extensions.Options;
 
 namespace ProcRespawn;
 
-sealed class DaemonService : IHostedService, IDisposable
+sealed class ProcRespawnDaemon : IHostedService, IDisposable
 {
-    private readonly ILogger<DaemonService> _logger;
+    private readonly ILogger<ProcRespawnDaemon> _logger;
     private readonly IOptionsMonitor<AppConfig> _configMonitor;
     private Task? _task;
     private readonly SemaphoreSlim _semaphore = new(1, 1);
@@ -15,12 +15,11 @@ sealed class DaemonService : IHostedService, IDisposable
     private readonly ILogger<ProcessWrapper> _processLogger;
     private readonly CancellationTokenSource _sts;
 
-    public DaemonService(IOptionsMonitor<AppConfig> configMonitor, ILoggerFactory loggerFactory)
+    public ProcRespawnDaemon(IOptionsMonitor<AppConfig> configMonitor, ILoggerFactory loggerFactory)
     {
         _sts = new CancellationTokenSource();
-        _logger = loggerFactory.CreateLogger<DaemonService>();
+        _logger = loggerFactory.CreateLogger<ProcRespawnDaemon>();
         _processLogger = loggerFactory.CreateLogger<ProcessWrapper>();
-        _logger.LogInformation("Start DaemonService");
         _configMonitor = configMonitor;
         configMonitor.OnChange(OnConfigChange);
     }
@@ -40,7 +39,7 @@ sealed class DaemonService : IHostedService, IDisposable
 
             _processes.Clear();
 
-            _task = RunAsync(_sts.Token);
+            _task = StartOrMonitorProcessesAsync(_sts.Token);
         }
         finally
         {
@@ -48,7 +47,7 @@ sealed class DaemonService : IHostedService, IDisposable
         }
     }
 
-    private async Task RunAsync(CancellationToken cancellationToken)
+    private async Task StartOrMonitorProcessesAsync(CancellationToken cancellationToken)
     {
         var config = _configMonitor.CurrentValue;
         var startUpBackoff = TimeSpan.FromMilliseconds(config.StartupBackoffInMilliseconds);
@@ -62,13 +61,13 @@ sealed class DaemonService : IHostedService, IDisposable
 
                 Task OnWrapperProcessExited(object? __, ProcessConfig _)
                 {
-                    wrapper.StartSilent(cancellationToken, startUpBackoff);
+                    wrapper.StartOrMonitorSilently(startUpBackoff, cancellationToken);
                     return Task.CompletedTask;
                 }
 
                 wrapper.ProcessExited += OnWrapperProcessExited;
                 _processes[processConfig] = wrapper;
-                wrapper.StartSilent(cancellationToken, startUpBackoff);
+                wrapper.StartOrMonitorSilently(startUpBackoff, cancellationToken);
             }
             finally
             {
@@ -79,8 +78,7 @@ sealed class DaemonService : IHostedService, IDisposable
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        _task = RunAsync(_sts.Token);
-        return Task.CompletedTask;
+        return StartOrMonitorProcessesAsync(_sts.Token);
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)
