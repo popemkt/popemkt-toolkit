@@ -81,9 +81,9 @@ sealed class ProcRespawnDaemon : IHostedService, IDisposable
         return StartOrMonitorProcessesAsync(_sts.Token);
     }
 
-    public async Task StopAsync(CancellationToken cancellationToken)
+    public Task StopAsync(CancellationToken cancellationToken)
     {
-        await _sts.CancelAsync();
+        return _sts.CancelAsync();
     }
 
     public void Dispose()

@@ -20,6 +20,12 @@ var app = Host.CreateDefaultBuilder(args)
         services.AddOptions();
         services.Configure<AppConfig>(context.Configuration);
         services.AddHostedService<ProcRespawnDaemon>();
+        services.Configure<HostOptions>(x =>
+        {
+            x.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.StopHost;
+            x.ServicesStartConcurrently = true;
+            x.ServicesStopConcurrently = true;
+        });
     })
     .Build();
 
