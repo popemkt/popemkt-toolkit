@@ -3,7 +3,7 @@
 CURRENT_USER=$(whoami)
 HOME_PATH=$(echo $HOME)
 pkill ProcRespawn
-rm -rf "$HOME_PATH/.popemkt-toolkit/proc-respawn"
+rm -rf "$HOME_PATH/.popemkt/proc-respawn"
 rm "$HOME_PATH/.config/autostart/proc-respawn.desktop"
 #systemctl disable proc-respawn.service
 #systemctl stop proc-respawn.service

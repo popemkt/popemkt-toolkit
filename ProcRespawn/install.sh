@@ -3,9 +3,9 @@
 CURRENT_USER=$(whoami)
 HOME_PATH=$(echo $HOME)
 #Installation folder
-mkdir -p "$HOME_PATH/.popemkt-toolkit/proc-respawn"
-dotnet publish --runtime linux-x64 -p:PublishSingleFile=true -c Release -o "$HOME/.popemkt-toolkit/proc-respawn" --self-contained 
-#sudo mv "$HOME/.popemkt-toolkit/proc-respawn/ProcRespawn" /usr/local/bin/ProcRespawn
+mkdir -p "$HOME_PATH/.popemkt/proc-respawn"
+dotnet publish --runtime linux-x64 -p:PublishSingleFile=true -c Release -o "$HOME/.popemkt/proc-respawn" --self-contained 
+#sudo mv "$HOME/.popemkt/proc-respawn/ProcRespawn" /usr/local/bin/ProcRespawn
 #sudo restorecon -Rv /usr/local/bin in SELinux, you need this to restore the permissions context
 
 #This if for if you use this as a systemd service, which doesn't seem to work very well
