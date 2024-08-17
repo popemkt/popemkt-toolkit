@@ -4,13 +4,15 @@ using ProcRespawn;
 using Microsoft.Extensions.Hosting;
 
 var app = Host.CreateDefaultBuilder(args)
+    #if LINUX
     .UseSystemd()
-    .ConfigureAppConfiguration(((context, builder) =>
+    #endif
+    .ConfigureAppConfiguration(((_, builder) =>
     {
         Console.WriteLine("Configuring appsettings.json");
         var configPath = args.Length > 0
             ? args[0]
-            : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "appsettings.json");
+            : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"appsettings.{GetOs()}.json");
         Console.WriteLine(configPath);
         builder.AddJsonFile(configPath, optional: false, reloadOnChange: true);
     }))
@@ -32,3 +34,13 @@ var app = Host.CreateDefaultBuilder(args)
 Console.WriteLine("Running ProcRespawn...");
 await app.RunAsync();
 Console.WriteLine("ProcRespawn Exited");
+
+static string GetOs()
+{
+    return Environment.OSVersion.Platform switch
+    {
+        PlatformID.Unix => "linux",
+        PlatformID.Win32NT => "windows",
+        _ => throw new NotSupportedException("Unsupported OS")
+    };
+}

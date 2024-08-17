@@ -53,8 +53,13 @@ public class ProcessWrapper
                         _process = Process.Start(_processConfig.Path);
                         break;
                     case ExecutableType.Desktop:
+#if LINUX
                         var gioProcess = Process.Start("gio", ["launch", _processConfig.Path]);
                         await gioProcess.WaitForExitAsync(cancellationToken);
+#else
+                        Process.Start(_processConfig.Path);
+#endif
+                        // Wait for the process to kick up
                         while (_process is null && !cancellationToken.IsCancellationRequested)
                         {
                             _process = ProcessUtils.FindProcessByName(_processConfig.Name);
