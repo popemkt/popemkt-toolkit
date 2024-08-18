@@ -14,8 +14,8 @@ dotnet publish --runtime linux-x64 -p:PublishSingleFile=true -c Release -o "$HOM
 #sudo cp proc-respawn.service "/etc/systemd/system/"
 
 #Create desktop file
-sed -i 's/{USER}/'"$CURRENT_USER"'/g' proc-respawn.desktop
-cp proc-respawn.desktop "$HOME_PATH/.config/autostart/"
+sed -i 's/{USER}/'"$CURRENT_USER"'/g' ../proc-respawn.desktop
+cp ../proc-respawn.desktop "$HOME_PATH/.config/autostart/"
 
 #Reload and start
 #sudo systemctl daemon-reload

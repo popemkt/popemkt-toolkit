@@ -1,6 +1,6 @@
 [Desktop Entry]
 Name=ProcRespawn
-Exec=/home/popemkt/.popemkt/proc-respawn/ProcRespawn
+Exec=/home/{USER}/.popemkt/proc-respawn/ProcRespawn
 Type=Application
 X-GNOME-Autostart-enabled=true
 Icon=dotnet
