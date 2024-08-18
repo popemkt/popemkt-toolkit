@@ -8,9 +8,9 @@ It serves people who doesn't want to accidentally close their always-on apps, li
 
 ## Installation
 
-Clone this repo and run `./install.sh`
+Clone this repo and run `./scripts/install.sh`
 
-For uninstall just run `./uninstall.sh`
+For uninstall just run `./scripts/uninstall.sh`
 
 ## Technical details
 ## Limitations
