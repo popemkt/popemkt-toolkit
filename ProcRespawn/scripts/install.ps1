@@ -6,8 +6,12 @@ New-Item -Path "$HOME_PATH\.popemkt\proc-respawn" -ItemType Directory -Force
 
 # Publish the .NET application
 # WinExe is to work around the issue of console window showing up when running the application
-dotnet publish --runtime win-x64 -p:PublishSingleFile=true -p:OutputType=WinExe -c Release -o "$HOME_PATH\.popemkt\proc-respawn" --self-contained ..
-
+dotnet publish --runtime win-x64 -p:PublishSingleFile=true -p:OutputType=WinExe -c Release -o "$HOME_PATH\.popemkt\proc-respawn" --self-contained "$PSScriptRoot\.."
+$APPSETTINGS_FILES = Get-ChildItem -Path "$HOME_PATH\.popemkt\proc-respawn" -Filter "appsettings.*.json"
+# Replace {USER} in the appsettings.{any env}.json files
+foreach ($file in $APPSETTINGS_FILES) {
+    (Get-Content $file.FullName) -replace '{USER}', $CURRENT_USER | Set-Content $file.FullName
+}
 # Note: The following lines are commented out as they are Linux-specific and don't have direct PowerShell equivalents
 # #sudo mv "$HOME/.popemkt/proc-respawn/ProcRespawn" /usr/local/bin/ProcRespawn
 # #sudo restorecon -Rv /usr/local/bin in SELinux, you need this to restore the permissions context
