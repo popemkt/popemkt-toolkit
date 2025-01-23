@@ -24,4 +24,52 @@
       </None>
     </ItemGroup>
 
+    <Target Name="dev">
+        <Exec Command="dotnet run" />
+    </Target>
+
+    <Target Name="clean">
+        <Exec Command="dotnet clean" />
+    </Target>
+
+    <Target Name="build-release">
+        <Exec Command="dotnet publish -c Release" />
+    </Target>
+
+    <Target Name="install-linux" Condition="$([MSBuild]::IsLinux())">
+        <Exec Command="sudo bash scripts/install.sh" />
+    </Target>
+
+    <Target Name="uninstall-linux" Condition="$([MSBuild]::IsLinux())">
+        <Exec Command="sudo bash scripts/uninstall.sh" />
+    </Target>
+
+    <Target Name="install-windows" Condition="$([MSBuild]::IsWindows())">
+        <Exec Command="powershell -ExecutionPolicy Bypass -File scripts/install.ps1" />
+    </Target>
+
+    <Target Name="uninstall-windows" Condition="$([MSBuild]::IsWindows())">
+        <Exec Command="powershell -ExecutionPolicy Bypass -File scripts/uninstall.ps1" />
+    </Target>
+
+    <!-- Custom scripts for common operations -->
+    <Target Name="build">
+        <Exec Command="dotnet build" />
+    </Target>
+
+    <Target Name="test">
+        <Exec Command="dotnet test" />
+    </Target>
+
+    <Target Name="publish-win">
+        <Exec Command="dotnet publish -c Release -r win-x64 --self-contained true" />
+    </Target>
+
+    <Target Name="publish-linux">
+        <Exec Command="dotnet publish -c Release -r linux-x64 --self-contained true" />
+    </Target>
+
+    <Target Name="publish-osx">
+        <Exec Command="dotnet publish -c Release -r osx-x64 --self-contained true" />
+    </Target>
 </Project>
